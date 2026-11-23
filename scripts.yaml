@@ -1,0 +1,60 @@
+twe_legio_aufheizung:
+  alias: Legionellenschutz Aufwärmung starten
+  description: Heizt den Boiler bis 60 Grad auf
+  mode: single
+  max_exceeded: silent
+
+  sequence:
+    # Boilerrelais einschalten
+    - action: switch.turn_on
+      target:
+        entity_id: switch.303505d7f8000000000017c0000fbf7400_0
+        
+      # Start-E-Mail versenden
+    - action: notify.send_message
+      target:
+        entity_id: notify.home_assistant_notification_roland_luro_ch
+      data:
+        title: "Legionellenschutz - Aufheizung gestartet"
+        message: >
+          Die Legionellenaufheizung wurde gestartet.
+
+          Aktuelle Temperatur:
+          {{ states('sensor.technik_x_change_dynamic_isttemperatur_twe') }} °C
+
+          Startzeitpunkt: {{ now().strftime('%d.%m.%Y um %H:%M Uhr') }}
+
+    # Warten bis 60 Grad erreicht sind  
+    - wait_template: >
+         {{ is_state('input_boolean.twe_legionellenschutz_temp_erreicht', 'on') }}
+
+    # Boilerrelais in jedem Fall ausschalten
+    - action: switch.turn_off
+      target:
+        entity_id: switch.303505d7f8000000000017c0000fbf7400_0
+
+    # Datum nur bei erfolgreich erreichter Temperatur speichern
+    - if:
+        - condition: template
+          value_template: "{{ wait.completed }}"
+      then:
+        - action: input_datetime.set_datetime
+          target:
+            entity_id: input_datetime.twe_legio_letzte_aufheizung
+          data:
+           datetime: "{{ now().strftime('%Y-%m-%d %H:%M:%S') }}"
+           
+          # Erfolgs-E-Mail versenden
+        - action: notify.send_message
+          target:
+            entity_id: notify.home_assistant_notification_roland_luro_ch
+          data:
+            title: "Legionellenschutz - Aufheizung erfolgreich"
+            message: >
+              Die Legionellenaufheizung wurde erfolgreich abgeschlossen.
+
+              Zieltemperatur: 60 °C
+              Erreichte Temperatur:
+              {{ states('sensor.technik_x_change_dynamic_isttemperatur_twe') }} °C
+
+              Zeitpunkt: {{ now().strftime('%d.%m.%Y um %H:%M Uhr') }}

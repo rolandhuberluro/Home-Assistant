@@ -1,0 +1,177 @@
+
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+template:
+  - switch:
+      - name: "Entfeuchter Werken Bedarf Entfeuchtung"
+        unique_id: entfeuchter_werken_bedarf_entfeuchtung
+        state: >
+          {{ is_state('input_boolean.entfeuchter_werken_bedarf_entfeuchtung', 'on') }}
+        turn_on:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.entfeuchter_werken_bedarf_entfeuchtung
+        turn_off:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.entfeuchter_werken_bedarf_entfeuchtung
+
+      - name: "Entfeuchter Technik Bedarf Entfeuchtung"
+        unique_id: entfeuchter_technik_bedarf_entfeuchtung
+        state: >
+          {{ is_state('input_boolean.entfeuchter_technik_bedarf_entfeuchtung', 'on') }}
+        turn_on:
+          - action: input_boolean.turn_on
+            target:
+              entity_id: input_boolean.entfeuchter_technik_bedarf_entfeuchtung
+        turn_off:
+          - action: input_boolean.turn_off
+            target:
+              entity_id: input_boolean.entfeuchter_technik_bedarf_entfeuchtung
+              
+  - sensor:
+      # Solarproduktion
+      - name: Leistung - PV Erzeugung
+        unique_id: leistung_pv_erzeugung
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ float(states('sensor.technik_solaredge_i1_ac_power'), 0) }}
+        availability: >
+          {{ has_value('sensor.technik_solaredge_i1_ac_power') }}
+
+      # Hausverbrauch
+      - name: Leistung - Verbrauch Haus
+        unique_id: leistung_verbrauch_haus
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ float(states('sensor.technik_solaredge_i1_ac_power'), 0)
+             - float(states('sensor.technik_solaredge_i1_m1_ac_power'), 0) }}
+        availability: >
+          {{ has_value('sensor.technik_solaredge_i1_ac_power')
+             and has_value('sensor.technik_solaredge_i1_m1_ac_power') }}
+
+      # Netzbezug
+      - name: Leistung - Netz Bezug
+        unique_id: leistung_netz_bezug
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ min([float(states('sensor.technik_solaredge_i1_m1_ac_power'), 0), 0])
+             | abs }}
+        availability: >
+          {{ has_value('sensor.technik_solaredge_i1_m1_ac_power') }}
+
+      # Einspeisung ins Netz
+      - name: Leistung - Netz Einspeisung
+        unique_id: leistung_netz_einspeisung
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ max([float(states('sensor.technik_solaredge_i1_m1_ac_power'), 0), 0])
+             | abs }}
+        availability: >
+          {{ has_value('sensor.technik_solaredge_i1_m1_ac_power') }}
+
+      # PV-Leistung für den Eigenverbrauch
+      - name: Leistung - PV Eigenverbrauch
+        unique_id: leistung_pv_eigenverbrauch
+        unit_of_measurement: W
+        device_class: power
+        state_class: measurement
+        state: >
+          {{ max([
+            float(states('sensor.leistung_pv_erzeugung'), 0)
+           - float(states('sensor.leistung_netz_einspeisung'), 0), 0
+          ]) }}
+        availability: >
+          {{ has_value('sensor.leistung_pv_erzeugung')
+             and has_value('sensor.leistung_netz_einspeisung') }}
+             
+      # Boilerrelais Laufzeit 
+      - name: "TWE Boiler Relais Laufzeit"
+        unique_id: twe_boiler_relais_laufzeit
+        state: >
+            {% set entity = states['switch.303505d7f8000000000017c0000fbf7400_0'] %}
+            {% set sekunden = (as_timestamp(now()) - as_timestamp(entity.last_changed)) | int %}
+            {{ (sekunden // 3600) }} Std. {{ ((sekunden % 3600) // 60) }} Min.
+        icon: mdi:timer-outline
+
+sensor:
+  # Netzbezug in kWh
+  - platform: integration
+    source: sensor.leistung_netz_bezug
+    name: Energie - Netz Bezug
+    unique_id: energie_netz_bezug
+    unit_prefix: k
+    round: 2
+    method: left
+
+  # Netzeinspeisung in kWh
+  - platform: integration
+    source: sensor.leistung_netz_einspeisung
+    name: Energie - Netz Einspeisung
+    unique_id: energie_netz_einspeisung
+    unit_prefix: k
+    round: 2
+    method: left
+
+  # Solarproduktion in kWh
+  - platform: integration
+    source: sensor.leistung_pv_erzeugung
+    name: Energie - PV Erzeugung
+    unique_id: _energie_pv_erzeugung
+    unit_prefix: k
+    round: 2
+    method: left
+
+  # Hausverbrauch in kWh
+  - platform: integration
+    source: sensor.leistung_verbrauch_haus
+    name: Energie - Verbrauch Haus
+    unique_id: energie_verbrauch_haus
+    unit_prefix: k
+    round: 2
+    method: left
+
+  # PV-Eigenverbrauch in kWh
+  - platform: integration
+    source: sensor.leistung_pv_eigenverbrauch
+    name: Energie - PV Eigenverbrauch
+    unique_id: energie_pv_eigenverbrauch
+    unit_prefix: k
+    round: 2
+    method: left
+    
+  # Laufzeit Entfeuchter Werken
+  - platform: history_stats
+    name: Entfeuchter Werken Laufzeit heute
+    unique_id: dehumifyer_werken_runtime_today
+    entity_id: switch.302ed89f43f00000000029c00011044600_0
+    state: "on"
+    type: time
+    start: "{{ today_at('00:00') }}"
+    end: "{{ now() }}"
+    # Laufzeit Entfeuchter Technik
+  - platform: history_stats
+    name: Entfeuchter Technik Laufzeit heute
+    unique_id: dehumifyer_technik_runtime_today
+    entity_id: switch.302ed89f43f00000000029c0001103af00_0
+    state: "on"
+    type: time
+    start: "{{ today_at('00:00') }}"
+    end: "{{ now() }}"
