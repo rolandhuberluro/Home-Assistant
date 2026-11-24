@@ -1,0 +1,9 @@
+- id: twe_main_off_at_2300
+  alias: Turn off TWE main at 23:00
+  trigger:
+    - platform: time
+      at: "23:00:00"
+  action:
+    - service: switch.turn_off
+      target:
+        entity_id: switch.twe_main

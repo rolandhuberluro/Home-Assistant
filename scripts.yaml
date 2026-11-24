@@ -10,8 +10,9 @@ twe_legio_aufheizung:
       target:
         entity_id: switch.303505d7f8000000000017c0000fbf7400_0
         
-      # Start-E-Mail versenden
+    # Start-E-Mail versenden
     - action: notify.send_message
+      continue_on_error: true
       target:
         entity_id: notify.home_assistant_notification_roland_luro_ch
       data:
@@ -24,9 +25,11 @@ twe_legio_aufheizung:
 
           Startzeitpunkt: {{ now().strftime('%d.%m.%Y um %H:%M Uhr') }}
 
-    # Warten bis 60 Grad erreicht sind  
+    # Höchstens drei Stunden auf die Zieltemperatur warten
     - wait_template: >
          {{ is_state('input_boolean.twe_legionellenschutz_temp_erreicht', 'on') }}
+      timeout: "03:00:00"
+      continue_on_timeout: true
 
     # Boilerrelais in jedem Fall ausschalten
     - action: switch.turn_off

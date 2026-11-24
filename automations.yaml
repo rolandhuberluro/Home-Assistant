@@ -159,167 +159,6 @@
         entity_id: switch.302ed89f43f00000000029c0001103af00_0
   mode: single
   
-# WERKEN TAG ==================================================================================== #
-- id: entfeuchter_werken_pv_betrieb
-  alias: Entfeuchter Werken PV Betrieb
-  description: PV-gesteuerter Betrieb mit max. Laufzeit
-  triggers:
-    - trigger: homeassistant
-      event: start
-    - trigger: template
-      value_template: >
-        {{ states('sensor.leistung_netz_einspeisung') | float(0)
-           > states('input_number.entfeuchter_mind_pv_uberschuss') | float(0) }}
-    - trigger: state
-      entity_id: input_number.entfeuchter_werken_max_laufzeit_tag
-    - trigger: state
-      entity_id: switch.entfeuchter_werken_bedarf_entfeuchtung
-      to: 'on'
-  conditions:    
-    - condition: template
-      value_template: >
-        {{ states('sensor.leistung_netz_einspeisung') | float(0)
-           >= states('input_number.entfeuchter_mind_pv_uberschuss') | float(0) }}
-    - condition: template
-      value_template: >
-        {{ states('sensor.entfeuchter_werken_laufzeit_heute') | float(0)
-           < states('input_number.entfeuchter_werken_max_laufzeit_tag') | float(0) }}
-    - condition: state
-      entity_id: switch.entfeuchter_werken_bedarf_entfeuchtung
-      state: 'on'
-    - condition: time
-      before: '21:00:00'
-  actions:           
-    - action: switch.turn_on
-      target:
-        entity_id: switch.302ed89f43f00000000029c00011044600_0
-        
-    # Timer nur starten, wenn er nicht bereits läuft
-    - if:
-        - condition: template
-          value_template: >
-            {{ not is_state('timer.entfeuchter_werken_ausschaltverzogerung', 'active') }}
-      then:
-        - action: timer.start
-          target:
-            entity_id: timer.entfeuchter_werken_ausschaltverzogerung          
-    - wait_template: >
-        {{
-         (
-          states('sensor.entfeuchter_werken_laufzeit_heute') | float(0)
-            >= states('input_number.entfeuchter_werken_max_laufzeit_tag') | float(0)
-          or states('sensor.leistung_netz_einspeisung') | float(0)
-            <= states('input_number.entfeuchter_mind_pv_uberschuss') | float(0)
-          or is_state('switch.entfeuchter_werken_bedarf_entfeuchtung', 'off')
-          or now().hour >= 21
-          )
-           and is_state('timer.entfeuchter_werken_ausschaltverzogerung', 'idle') 
-        }}
-    - action: switch.turn_off
-      target:
-        entity_id: switch.302ed89f43f00000000029c00011044600_0
-  mode: single
-  
-# WERKEN NACHT --------------------------------------------------------------------------------------- #
-- id: entfeuchter_werken_nacht_betrieb
-  alias: Entfeuchter Werken Nachtbetrieb
-  description: Nacht Betrieb mit max. Laufzeit
-  triggers:
-    - trigger: homeassistant
-      event: start
-    - trigger: state
-      entity_id: input_number.entfeuchter_werken_max_laufzeit_nacht
-    - trigger: state
-      entity_id: switch.entfeuchter_werken_bedarf_entfeuchtung
-      to: 'on'
-  conditions:
-    - condition: template
-      value_template: >
-        {{ states('sensor.entfeuchter_werken_laufzeit_heute') | float(0)
-           < states('input_number.entfeuchter_werken_max_laufzeit_nacht') | float(0) }}
-    - condition: state
-      entity_id: switch.entfeuchter_werken_bedarf_entfeuchtung
-      state: 'on'
-    - condition: time
-      after: '21:00:00'
-  actions:           
-    - action: switch.turn_on
-      target:
-        entity_id: switch.302ed89f43f00000000029c00011044600_0    
-    - wait_template: >
-        {{
-            states('sensor.entfeuchter_werken_laufzeit_heute') | float(0)
-            >= states('input_number.entfeuchter_werken_max_laufzeit_nacht') | float(0)
-            or is_state('switch.entfeuchter_werken_bedarf_entfeuchtung', 'off')
-            or now().strftime('%H:%M') >= '23:50'          
-        }}
-    - action: switch.turn_off
-      data: {}
-      target:
-        entity_id: switch.302ed89f43f00000000029c00011044600_0
-  mode: single
-  
-# TECHNIK TAG ==================================================================================== #
-- id: entfeuchter_technik_pv_betrieb
-  alias: Entfeuchter Technik PV Betrieb
-  description: PV-gesteuerter Betrieb mit max. Laufzeit
-  triggers:
-    - trigger: homeassistant
-      event: start
-    - trigger: template
-      value_template: >
-        {{ states('sensor.leistung_netz_einspeisung') | float(0)
-           >= states('input_number.entfeuchter_mind_pv_uberschuss') | float(0) }}
-    - trigger: state
-      entity_id: input_number.entfeuchter_technik_max_laufzeit_tag
-    - trigger: state
-      entity_id: switch.entfeuchter_technik_bedarf_entfeuchtung
-      to: 'on'
-  conditions:
-    - condition: template
-      value_template: >
-        {{ states('sensor.leistung_netz_einspeisung') | float(0)
-           >= states('input_number.entfeuchter_mind_pv_uberschuss') | float(0) }}
-    - condition: template
-      value_template: >
-        {{ states('sensor.entfeuchter_technik_laufzeit_heute') | float(0)
-           < states('input_number.entfeuchter_technik_max_laufzeit_tag') | float(0) }}
-    - condition: state
-      entity_id: switch.entfeuchter_technik_bedarf_entfeuchtung
-      state: 'on'
-    - condition: time
-      before: '21:00:00'
-  actions:
-    - action: switch.turn_on
-      target:
-        entity_id: switch.302ed89f43f00000000029c0001103af00_0
-     # Timer nur starten, wenn er nicht bereits läuft
-    - if:
-        - condition: template
-          value_template: >
-            {{ not is_state('timer.entfeuchter_technik_ausschaltverzogerung', 'active') }}
-      then:
-        - action: timer.start
-          target:
-            entity_id: timer.entfeuchter_technik_ausschaltverzogerung               
-      
-    - wait_template: >
-        {{
-         (
-          states('sensor.entfeuchter_technik_laufzeit_heute') | float(0)
-            >= states('input_number.entfeuchter_technik_max_laufzeit_tag') | float(0)
-          or states('sensor.leistung_netz_einspeisung') | float(0)
-            <= states('input_number.entfeuchter_mind_pv_uberschuss') | float(0)
-          or is_state('switch.entfeuchter_technik_bedarf_entfeuchtung', 'off')
-          or now().hour >= 21
-          )
-           and is_state('timer.entfeuchter_technik_ausschaltverzogerung', 'idle') 
-        }}
-    - action: switch.turn_off
-      target:
-        entity_id: switch.302ed89f43f00000000029c0001103af00_0
-  mode: single
-  
 # TECHNIK NACHT --------------------------------------------------------------------------------------- #
 - id: entfeuchter_technik_nacht_betrieb
   alias: Entfeuchter Technik Nachtbetrieb
@@ -358,46 +197,6 @@
         entity_id: switch.302ed89f43f00000000029c0001103af00_0
   mode: single
 
-- id: entfeuchter_technik_nacht_betrieb
-  alias: Entfeuchter Technik Nachtbetrieb
-  description: Nacht Betrieb mit max. Laufzeit
-  triggers:
-    - trigger: homeassistant
-      event: start
-    - trigger: state
-      entity_id: input_number.entfeuchter_technik_max_laufzeit_nacht
-    - trigger: state
-      entity_id: switch.entfeuchter_technik_bedarf_entfeuchtung
-      to: 'on'
-  conditions:
-    - condition: template
-      value_template: >
-        {{ states('sensor.entfeuchter_technik_laufzeit_heute') | float(0)
-           < states('input_number.entfeuchter_technik_max_laufzeit_nacht') | float(0) }}
-    - condition: state
-      entity_id: switch.entfeuchter_technik_bedarf_entfeuchtung
-      state: 'on'
-    - condition: time
-      after: '21:00:00'
-  actions:
-    - action: switch.turn_on
-      target:
-        entity_id: switch.302ed89f43f00000000029c0001103af00_0
-    - wait_template: >
-        {{
-          states('sensor.entfeuchter_technik_laufzeit_heute') | float(0)
-            >= states('input_number.entfeuchter_technik_max_laufzeit_nacht') | float(0)
-          or is_state('switch.entfeuchter_technik_bedarf_entfeuchtung', 'off')
-          or now().strftime('%H:%M') >= '23:50'
-        }}
-    - action: switch.turn_off
-      target:
-        entity_id: switch.302ed89f43f00000000029c0001103af00_0
-  mode: single
-
-
-# LEGIONELLEN SCHALTUNG ==================================================================================== #
-# MAIN --------------------------------------------------------------------------------------- #
 - id: twe_legio_schaltung_relais
   alias: Legionellenschutz - Schaltung Relais
   description: Startet die Legionellenaufwärmung (Hauptautomation)
@@ -428,7 +227,7 @@
             - condition: and
               conditions:
                 - condition: state
-                  entity_id: input_boolean.twe_legionellenschutz_ok_fallig_nacht
+                  entity_id: input_boolean.twe_legionellenschutz_fallig_nacht
                   state: "on"
                 - condition: time
                   after: "20:59:59"
@@ -584,8 +383,8 @@
     - condition: template
       value_template: >
         {{ (as_timestamp(now()) -
-            as_timestamp(state_attr('switch.303505d7f8000000000017c0000fbf7400_0', 'last_changed')))
-            > 10800 }}
+            as_timestamp(states.switch['303505d7f8000000000017c0000fbf7400_0'].last_changed))
+            >= 10800 }}
 
   actions:
     - action: switch.turn_off
